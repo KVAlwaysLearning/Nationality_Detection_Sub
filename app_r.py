@@ -9,8 +9,10 @@ from transformers import pipeline
 from tensorflow import keras
 from sklearn.cluster import KMeans
 
-# --- CONFIGURATION ---
+st.set_page_config(layout="wide", page_title="Nationality Analyzer")
+
 BASE_MODEL_DIR = os.path.join(os.getcwd(), "all_models")
+DRIVE_ID = st.secrets["drive_folder_id"]
 
 @st.cache_resource
 def setup_models():
