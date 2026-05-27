@@ -9,9 +9,16 @@ from transformers import pipeline
 from tensorflow import keras
 from sklearn.cluster import KMeans
 
-# CONFIGURATION
+# 1. Page Config
+st.set_page_config(page_title="Nationality & Attribute ID", layout="wide")
+
+# 2. Configuration & Secrets
 DRIVE_FOLDER_ID = st.secrets["drive_folder_id"]
 BASE_MODEL_DIR = "all_models"
+
+# 3. Cache Clearing Logic
+if 'last_file' not in st.session_state:
+    st.session_state.last_file = None
 
 @st.cache_resource
 def setup_models():
@@ -21,8 +28,7 @@ def setup_models():
     
     # Load Models
     yolo_person = YOLO(os.path.join(BASE_MODEL_DIR, "yolo/yolov8n.pt"))
-    # Assuming your face detector is also YOLO-based
-    yolo_face = YOLO(os.path.join(BASE_MODEL_DIR, "yolo/yolov8n-face.pt")) 
+    yolo_face = YOLO(os.path.join(BASE_MODEL_DIR, "yolo/yolov8n-face.pt"))
     nat_model = YOLO(os.path.join(BASE_MODEL_DIR, "nationality/nat_model_yolo11x.pt"))
     emo_pipe = pipeline("image-classification", model=os.path.join(BASE_MODEL_DIR, "emotion"))
     age_model = keras.models.load_model(os.path.join(BASE_MODEL_DIR, "age/best_model.h5"), compile=False)
@@ -42,49 +48,53 @@ def get_dress_color(cloth_crop):
     elif rgb[2] > 200: name = "Blue"
     return f"{name} (RGB: {rgb[0]}, {rgb[1]}, {rgb[2]})"
 
-# --- MAIN UI ---
+# 4. Main App
 st.title("🌍 Identity & Attribute Identification")
 uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
+    # Trigger cache clear if a new file is uploaded
+    file_id = f"{uploaded_file.name}-{uploaded_file.size}"
+    if file_id != st.session_state.last_file:
+        st.cache_resource.clear()
+        st.session_state.last_file = file_id
+
     yolo_p, yolo_f, nat_model, emo_pipe, age_model = setup_models()
     image = Image.open(uploaded_file).convert("RGB")
     
-    # 1. Detect Person
+    # Process
     p_results = yolo_p(np.array(image), classes=[0], conf=0.5)
+    
     if p_results[0].boxes:
-        # Get highest confidence person
+        # Get best person
         best_p = max(p_results[0].boxes, key=lambda b: b.conf)
         px1, py1, px2, py2 = map(int, best_p.xyxy[0])
         person_crop = image.crop((px1, py1, px2, py2))
         
-        # 2. Detect Face within Person
+        # Detect Face or Fallback
         f_results = yolo_f(np.array(person_crop), conf=0.3)
         if f_results[0].boxes:
             best_f = max(f_results[0].boxes, key=lambda b: b.conf)
             fx1, fy1, fx2, fy2 = map(int, best_f.xyxy[0])
             crop_to_analyze = person_crop.crop((fx1, fy1, fx2, fy2))
         else:
-            crop_to_analyze = person_crop # Fallback to whole person
+            crop_to_analyze = person_crop
             
-        # 3. Analyze Attributes
-        # Nationality
+        # Analysis
         nat_res = nat_model.predict(crop_to_analyze, verbose=False)
         raw_nat = nat_res[0].names[int(nat_res[0].probs.top1)]
         nationality = get_mapped_nationality(raw_nat)
         
-        # Emotion
         emotion = max(emo_pipe(crop_to_analyze), key=lambda x: x['score'])['label']
-        
-        # Dress Color (always using middle-lower part of person crop)
-        cloth_crop = person_crop.crop((0, int(person_crop.height * 0.4), person_crop.width, person_crop.height))
-        dress_color = get_dress_color(cloth_crop)
-        
-        # Age
         age = int(age_model.predict(np.expand_dims(np.array(crop_to_analyze.resize((224, 224)))/255.0, 0), verbose=0)[0][0])
         
-        # Display
-        results_data = {"Nationality": nationality, "Age": age, "Emotion": emotion, "Dress": dress_color}
-        st.table(pd.DataFrame([results_data]))
+        cloth_crop = person_crop.crop((0, int(person_crop.height * 0.4), person_crop.width, person_crop.height))
+        dress = get_dress_color(cloth_crop)
+        
+        # Output
+        st.image(image.resize((1024, 1024)), caption="Analyzed Image", use_container_width=True)
+        st.table(pd.DataFrame([{
+            "Nationality": nationality, "Age": age, "Emotion": emotion.capitalize(), "Dress": dress
+        }]))
     else:
         st.error("No person detected.")
