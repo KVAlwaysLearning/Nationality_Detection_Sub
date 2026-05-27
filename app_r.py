@@ -25,7 +25,7 @@ def setup_models():
     
     # 3. Proceed to load your models now that files are in place
     # Example: yolo_model = YOLO(os.path.join(BASE_MODEL_DIR, "yolov8n.pt"))
-    return "Models Ready"
+        return "Models Ready"
     # Load YOLO for Person Detection
     yolo_person = YOLO(os.path.join(BASE_MODEL_DIR, "yolo/yolov8n.pt"))
     # Load Nationality model
@@ -34,6 +34,7 @@ def setup_models():
     emo_pipe = pipeline("image-classification", model=os.path.join(BASE_MODEL_DIR, "emotion"))
     # Load Age model
     age_model = keras.models.load_model(os.path.join(BASE_MODEL_DIR, "age/best_model.h5"), compile=False)
+    
     return yolo_person, nat_model, emo_pipe, age_model
 
 def get_mapped_nationality(raw_label):
