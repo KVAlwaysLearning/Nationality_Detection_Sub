@@ -11,14 +11,13 @@ from tensorflow import keras
 st.set_page_config(layout="wide", page_title="Nationality & Attribute Analyzer")
 
 # --- CONFIGURATION ---
-# Assumes models are in the 'all_models' directory
 BASE_MODEL_DIR = os.path.join(os.getcwd(), "all_models")
 
 @st.cache_resource
 def setup_models():
     # Load YOLO for Face Detection
     yolo_face = YOLO(os.path.join(BASE_MODEL_DIR, "yolo/yolov8n.pt"))
-    # Load your yolo11x Nationality model
+    # Load your Nationality model (yolo11x)
     nat_model = YOLO(os.path.join(BASE_MODEL_DIR, "nationality/Race-CLS-FairFace_yolo11x.pt"))
     # Load Emotion pipeline
     emotion_pipe = pipeline("image-classification", model=os.path.join(BASE_MODEL_DIR, "emotion"))
@@ -27,7 +26,7 @@ def setup_models():
     return yolo_face, nat_model, emotion_pipe, age_model
 
 def get_mapped_nationality(raw_label):
-    # Adjust mapping based on exact output labels of your yolo11x model
+    # Mapping based on your specific requirements
     mapping = {
         "White": "American",
         "Indian": "Indian",
@@ -36,11 +35,12 @@ def get_mapped_nationality(raw_label):
     return mapping.get(raw_label, "Others")
 
 def get_dominant_color(image_crop):
-    """Calculates dominant color using simple averaging."""
+    """Calculates the average color of the image crop."""
     img = np.array(image_crop.resize((50, 50)))
-    avg_color = np.mean(img.reshape(-1, 3), axis=0)
-    # Basic logic to map RGB to simplified color categories
-    return "Standard Tone" 
+    avg_color_bgr = np.mean(img.reshape(-1, 3), axis=0)
+    # Simple logic to determine a color name based on RGB averages
+    # For a more advanced version, use K-Means clustering as discussed
+    return f"RGB({int(avg_color_bgr[0])}, {int(avg_color_bgr[1])}, {int(avg_color_bgr[2])})"
 
 # --- MAIN APP ---
 st.title("🌍 Nationality & Attribute Identification")
@@ -58,7 +58,7 @@ if uploaded_file:
         x1, y1, x2, y2 = map(int, results[0].boxes[0].xyxy[0])
         face_crop = image.crop((x1, y1, x2, y2))
     else:
-        face_crop = image # Use whole image if face not detected
+        face_crop = image # Fallback
         st.warning("Face not clearly detected, using full image.")
 
     # 2. Prediction Pipeline
@@ -70,19 +70,17 @@ if uploaded_file:
     # Emotion
     emotion = max(emo_pipe(face_crop), key=lambda x: x['score'])['label']
     
-    # Age (For Indian/American)
-    age = "N/A"
-    if nationality in ["Indian", "American"]:
-        processed_crop = np.array(face_crop.resize((224, 224)), dtype=np.float32) / 255.0
-        age = int(age_model.predict(np.expand_dims(processed_crop, axis=0), verbose=0)[0][0])
+    # Age Prediction
+    processed_crop = np.array(face_crop.resize((224, 224)), dtype=np.float32) / 255.0
+    age = int(age_model.predict(np.expand_dims(processed_crop, axis=0), verbose=0)[0][0])
     
-    # Dress Color (For Indian/African)
-    dress_color = "N/A"
-    if nationality in ["Indian", "African"]:
-        dress_color = get_dominant_color(face_crop)
+    # Dress Color
+    dress_color = get_dominant_color(face_crop)
         
     # 3. Display Results
-    st.image(image, caption="Analyzed Image", use_container_width=True)
+    # Display image with fixed width of 1024px
+    st.image(image, caption="Analyzed Image", width=1024)
+    
     results_df = pd.DataFrame([{
         "Nationality": nationality,
         "Emotion": emotion.capitalize(),
