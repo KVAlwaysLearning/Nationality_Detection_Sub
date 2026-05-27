@@ -40,9 +40,17 @@ uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 if uploaded_file:
     yolo, nat_model, emo_pipe, age_model = setup_models()
     image = Image.open(uploaded_file)
+
+    # 1. Convert to RGB to remove the Alpha channel (transparency)
+    image_rgb = image.convert("RGB")
     
+    # 2. Convert to numpy array
+    img_array = np.array(image_rgb)
+        
+        
     # 1. Detect Person
     results = yolo(np.array(image), classes=[0], conf=0.4)
+    
     if results[0].boxes:
         px1, py1, px2, py2 = map(int, results[0].boxes[0].xyxy[0])
         person_crop = image.crop((px1, py1, px2, py2))
