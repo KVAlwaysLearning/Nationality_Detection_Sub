@@ -16,7 +16,7 @@ BASE_MODEL_DIR = "all_models"
 # Ensure your GDrive folder has folders named: 'yolo', 'nationality', 'emotion', 'age'
 # The 'nationality' folder should contain your 'Race-CLS-FairFace_yolo11x.pt'
 
-st.cache_resource
+@st.cache_resource
 def setup_models(drive_folder_id):
     # 1. Download models if they don't exist
     if not os.path.exists(BASE_MODEL_DIR):
