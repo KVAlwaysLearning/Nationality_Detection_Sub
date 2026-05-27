@@ -30,7 +30,7 @@ def setup_models():
     # 2. Define Paths - ADJUST THESE NAMES IF DEBUGGER SHOWS DIFFERENT NAMES
     # Ensure these paths match what the debugger outputs above
     yolo_path = os.path.join(BASE_MODEL_DIR, "yolo/yolov8n.pt")
-    nat_path = os.path.join(BASE_MODEL_DIR, "nationality/Race-CLS-FairFace_yolo11x.pt")
+    nat_path = os.path.join(BASE_MODEL_DIR, "nationality/nat_model_yolo11x.pt")
     emo_path = os.path.join(BASE_MODEL_DIR, "emotion")
     age_path = os.path.join(BASE_MODEL_DIR, "age/best_model.h5")
     
