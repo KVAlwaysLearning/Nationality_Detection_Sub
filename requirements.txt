@@ -7,4 +7,4 @@ pandas
 numpy
 pillow
 scikit-learn
-webcolors
+webcolors==1.11.1
