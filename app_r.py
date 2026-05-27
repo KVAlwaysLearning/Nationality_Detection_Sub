@@ -3,7 +3,6 @@ import os
 import gdown
 import pandas as pd
 import numpy as np
-import cv2
 from PIL import Image
 from ultralytics import YOLO
 from transformers import pipeline
@@ -11,53 +10,82 @@ from tensorflow import keras
 from sklearn.cluster import KMeans
 
 # CONFIGURATION
+# Ensure 'drive_folder_id' is set in Streamlit Cloud Settings > Secrets
 DRIVE_FOLDER_ID = st.secrets["drive_folder_id"]
 BASE_MODEL_DIR = "all_models"
 
 @st.cache_resource
 def setup_models():
-    # 1. Download Folder
+    # Download folder if it doesn't exist
     if not os.path.exists(BASE_MODEL_DIR):
         os.makedirs(BASE_MODEL_DIR, exist_ok=True)
         gdown.download_folder(id=DRIVE_FOLDER_ID, output=BASE_MODEL_DIR, quiet=False)
     
-    # DEBUGGER: Print directory structure to find the real path
-    st.write("--- Debugging Model Paths ---")
-    for root, dirs, files in os.walk(BASE_MODEL_DIR):
-        for file in files:
-            st.write(f"Found: {os.path.join(root, file)}")
-    
-    # 2. Define Paths - ADJUST THESE NAMES IF DEBUGGER SHOWS DIFFERENT NAMES
-    # Ensure these paths match what the debugger outputs above
-    yolo_path = os.path.join(BASE_MODEL_DIR, "yolo/yolov8n.pt")
-    nat_path = os.path.join(BASE_MODEL_DIR, "nationality/nat_model_yolo11x.pt")
-    emo_path = os.path.join(BASE_MODEL_DIR, "emotion")
-    age_path = os.path.join(BASE_MODEL_DIR, "age/best_model.h5")
-    
-    # 3. Load Models
-    yolo_person = YOLO(yolo_path)
-    nat_model = YOLO(nat_path)
-    emo_pipe = pipeline("image-classification", model=emo_path)
-    age_model = keras.models.load_model(age_path, compile=False)
+    # Load Models
+    yolo_person = YOLO(os.path.join(BASE_MODEL_DIR, "yolo/yolov8n.pt"))
+    nat_model = YOLO(os.path.join(BASE_MODEL_DIR, "nationality/nat_model_yolo11x.pt"))
+    emo_pipe = pipeline("image-classification", model=os.path.join(BASE_MODEL_DIR, "emotion"))
+    age_model = keras.models.load_model(os.path.join(BASE_MODEL_DIR, "age/best_model.h5"), compile=False)
     
     return yolo_person, nat_model, emo_pipe, age_model
 
-# ... [Keep your existing helper functions: get_mapped_nationality, get_dress_color] ...
+def get_mapped_nationality(raw_label):
+    mapping = {"White": "American", "Indian": "Indian", "Black": "African"}
+    return mapping.get(raw_label, "Others")
 
-# --- MAIN APP ---
+def get_dress_color(cloth_crop):
+    img = np.array(cloth_crop.resize((50, 50))).reshape(-1, 3)
+    kmeans = KMeans(n_clusters=1, n_init=5).fit(img)
+    rgb = kmeans.cluster_centers_[0].astype(int)
+    name = "Other"
+    if rgb[0] > 200 and rgb[1] < 100: name = "Red"
+    elif rgb[2] > 200: name = "Blue"
+    return f"{name} (RGB: {rgb[0]}, {rgb[1]}, {rgb[2]})"
+
+# --- MAIN UI ---
 st.title("🌍 Nationality & Attribute Identification")
 uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
-    try:
-        yolo, nat_model, emo_pipe, age_model = setup_models()
-        image = Image.open(uploaded_file).convert("RGB")
+    yolo, nat_model, emo_pipe, age_model = setup_models()
+    image = Image.open(uploaded_file).convert("RGB")
+    
+    # 1. Detect Person
+    results = yolo(np.array(image), classes=[0], conf=0.4)
+    if results[0].boxes:
+        px1, py1, px2, py2 = map(int, results[0].boxes[0].xyxy[0])
+        person_crop = image.crop((px1, py1, px2, py2))
         
-        results = yolo(np.array(image), classes=[0], conf=0.4)
-        if results[0].boxes:
-            # ... [Keep your existing cropping and prediction logic] ...
-            st.success("Analysis Complete")
-        else:
-            st.error("No person detected.")
-    except Exception as e:
-        st.error(f"Error during execution: {e}")
+        # 2. Extract regions
+        face_crop = person_crop.crop((0, 0, person_crop.width, int(person_crop.height * 0.35)))
+        cloth_crop = person_crop.crop((0, int(person_crop.height * 0.35), person_crop.width, int(person_crop.height * 0.75)))
+        
+        # 3. Predictions
+        # Fix: Safely get the predicted class index
+        nat_res = nat_model.predict(face_crop, verbose=False)
+        cls_idx = int(nat_res[0].probs.top1)
+        raw_nat = nat_res[0].names[cls_idx]
+        nationality = get_mapped_nationality(raw_nat)
+        
+        emotion = max(emo_pipe(face_crop), key=lambda x: x['score'])['label']
+        
+        # Attribute logic: Initialize with N/A to keep table consistent
+        results_data = {
+            "Nationality": nationality, 
+            "Emotion": emotion.capitalize(), 
+            "Age": "N/A", 
+            "Dress Colour": "N/A"
+        }
+        
+        if nationality in ["Indian", "American"]:
+            age_pred = age_model.predict(np.expand_dims(np.array(face_crop.resize((224, 224)))/255.0, 0), verbose=0)
+            results_data["Age"] = int(age_pred[0][0])
+            
+        if nationality in ["Indian", "African"]:
+            results_data["Dress Colour"] = get_dress_color(cloth_crop)
+            
+        # 4. Display
+        st.image(image.resize((1024, 1024)), caption="Analyzed Image", use_container_width=True)
+        st.table(pd.DataFrame([results_data]))
+    else:
+        st.error("No person detected in the image.")
