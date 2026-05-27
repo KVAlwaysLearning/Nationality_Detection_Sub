@@ -17,7 +17,7 @@ def setup_models():
     # Load YOLO for Person Detection
     yolo_person = YOLO(os.path.join(BASE_MODEL_DIR, "yolo/yolov8n.pt"))
     # Load Nationality model
-    nat_model = YOLO(os.path.join(BASE_MODEL_DIR, "nationality/Race-CLS-FairFace_yolo11x.pt"))
+    nat_model = YOLO(os.path.join(BASE_MODEL_DIR, "nationality/nat_model_yolo11x.pt"))
     # Load Emotion pipeline
     emo_pipe = pipeline("image-classification", model=os.path.join(BASE_MODEL_DIR, "emotion"))
     # Load Age model
