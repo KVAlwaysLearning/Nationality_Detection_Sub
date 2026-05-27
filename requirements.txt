@@ -12,3 +12,4 @@ numpy
 streamlit-webrtc
 av
 scikit-learn
+webcolors
