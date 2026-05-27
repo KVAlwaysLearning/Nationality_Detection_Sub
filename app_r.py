@@ -40,7 +40,6 @@ def get_mapped_nationality(raw_label):
 
 def get_closest_color_name(requested_colour):
     min_colours = {}
-    # Use CSS3_NAMES_TO_HEX to get the mapping
     for name, hex_val in webcolors.CSS3_NAMES_TO_HEX.items():
         r_c, g_c, b_c = webcolors.hex_to_rgb(hex_val)
         rd = (r_c - requested_colour[0]) ** 2
@@ -76,36 +75,32 @@ if uploaded_file:
         px1, py1, px2, py2 = map(int, best_p.xyxy[0])
         person_crop = image.crop((px1, py1, px2, py2))
         
-        # Analysis
-        # 3. Predictions
-        raw_nat = nat_model.predict(face_crop, verbose=False)[0].names[int(nat_model.predict(face_crop, verbose=False)[0].probs.top1)]
+        # Region for clothing analysis
+        cloth_crop = person_crop.crop((0, int(person_crop.height * 0.4), person_crop.width, person_crop.height))
+        
+        # Nationality Prediction
+        nat_res = nat_model.predict(person_crop, verbose=False)
+        raw_nat = nat_res[0].names[int(nat_res[0].probs.top1)]
         nationality = get_mapped_nationality(raw_nat)
         
-        # Always predict Emotion
-        emotion = max(emo_pipe(face_crop), key=lambda x: x['score'])['label']
+        # Emotion Prediction (Always)
+        emotion = max(emo_pipe(person_crop), key=lambda x: x['score'])['label']
         
-        # Initialize results dictionary
+        # Build Results
         results_data = {"Nationality": nationality, "Emotion": emotion.capitalize()}
         
-        # Conditional Logic based on Nationality
-        if nationality == "Indian":
-            # Predict Age
-            age = int(age_model.predict(np.expand_dims(np.array(face_crop.resize((224, 224)))/255.0, 0), verbose=0)[0][0])
+        # Conditional Logic
+        if nationality == "Indians":
+            age = int(age_model.predict(np.expand_dims(np.array(person_crop.resize((224, 224)))/255.0, 0), verbose=0)[0][0])
+            results_data.update({"Age": age, "Dress": get_dress_color(cloth_crop)})
+        elif nationality == "Americans":
+            age = int(age_model.predict(np.expand_dims(np.array(person_crop.resize((224, 224)))/255.0, 0), verbose=0)[0][0])
             results_data["Age"] = age
-            # Predict Dress Colour
-            results_data["Dress Colour"] = get_dress_color(cloth_crop)
+        elif nationality == "Africans":
+            results_data["Dress"] = get_dress_color(cloth_crop)
             
-        elif nationality == "American":
-            # Predict Age
-            age = int(age_model.predict(np.expand_dims(np.array(face_crop.resize((224, 224)))/255.0, 0), verbose=0)[0][0])
-            results_data["Age"] = age
-            
-        elif nationality == "African":
-            # Predict Dress Colour
-            results_data["Dress Colour"] = get_dress_color(cloth_crop)
-            
-        # "Others" case implicitly handled as it only includes Nationality and Emotion
-            
-        # 4. Display
+        # Display
         st.image(image.resize((1024, 1024)), caption="Analyzed Image", use_container_width=False, width=1024)
         st.table(pd.DataFrame([results_data]))
+    else:
+        st.error("No person detected.")
