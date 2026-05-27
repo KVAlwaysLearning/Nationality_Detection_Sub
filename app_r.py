@@ -40,8 +40,9 @@ def get_mapped_nationality(raw_label):
 
 def get_closest_color_name(requested_colour):
     min_colours = {}
-    for key, name in webcolors.CSS3_HEX_TO_NAMES.items():
-        r_c, g_c, b_c = webcolors.hex_to_rgb(key)
+    # Use CSS3_NAMES_TO_HEX to get the mapping
+    for name, hex_val in webcolors.CSS3_NAMES_TO_HEX.items():
+        r_c, g_c, b_c = webcolors.hex_to_rgb(hex_val)
         rd = (r_c - requested_colour[0]) ** 2
         gd = (g_c - requested_colour[1]) ** 2
         bd = (b_c - requested_colour[2]) ** 2
