@@ -17,15 +17,14 @@ BASE_MODEL_DIR = "all_models"
 
 @st.cache_resource
 def setup_models():
+    
+    
     # 2. Download the entire folder if it doesn't exist locally
     if not os.path.exists(BASE_MODEL_DIR):
         os.makedirs(BASE_MODEL_DIR, exist_ok=True)
         # Downloads the folder recursively
         gdown.download_folder(id=DRIVE_FOLDER_ID, output=BASE_MODEL_DIR, quiet=False)
     
-    # 3. Proceed to load your models now that files are in place
-    # Example: yolo_model = YOLO(os.path.join(BASE_MODEL_DIR, "yolov8n.pt"))
-        return "Models Ready"
     # Load YOLO for Person Detection
     yolo_person = YOLO(os.path.join(BASE_MODEL_DIR, "yolo/yolov8n.pt"))
     # Load Nationality model
