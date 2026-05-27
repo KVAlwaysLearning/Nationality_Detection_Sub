@@ -14,6 +14,12 @@ BASE_MODEL_DIR = "all_models"
 
 @st.cache_resource
 def setup_models():
+    # Diagnostic: Print the directory structure
+    st.write("Checking directory:", BASE_MODEL_DIR)
+    for root, dirs, files in os.walk(BASE_MODEL_DIR):
+        for name in files:
+            st.write(f"Found file: {os.path.join(root, name)}")
+            
     yolo_person = YOLO(os.path.join(BASE_MODEL_DIR, "yolo/yolov8n.pt"))
     
     # Ensure the path exists
