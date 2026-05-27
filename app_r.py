@@ -77,20 +77,35 @@ if uploaded_file:
         person_crop = image.crop((px1, py1, px2, py2))
         
         # Analysis
-        nat_res = nat_model.predict(person_crop, verbose=False)
-        raw_nat = nat_res[0].names[int(nat_res[0].probs.top1)]
+        # 3. Predictions
+        raw_nat = nat_model.predict(face_crop, verbose=False)[0].names[int(nat_model.predict(face_crop, verbose=False)[0].probs.top1)]
         nationality = get_mapped_nationality(raw_nat)
         
-        emotion = max(emo_pipe(person_crop), key=lambda x: x['score'])['label']
-        age = int(age_model.predict(np.expand_dims(np.array(person_crop.resize((224, 224)))/255.0, 0), verbose=0)[0][0])
+        # Always predict Emotion
+        emotion = max(emo_pipe(face_crop), key=lambda x: x['score'])['label']
         
-        cloth_crop = person_crop.crop((0, int(person_crop.height * 0.4), person_crop.width, person_crop.height))
-        dress = get_dress_color(cloth_crop)
+        # Initialize results dictionary
+        results_data = {"Nationality": nationality, "Emotion": emotion.capitalize()}
         
-        # Output
+        # Conditional Logic based on Nationality
+        if nationality == "Indian":
+            # Predict Age
+            age = int(age_model.predict(np.expand_dims(np.array(face_crop.resize((224, 224)))/255.0, 0), verbose=0)[0][0])
+            results_data["Age"] = age
+            # Predict Dress Colour
+            results_data["Dress Colour"] = get_dress_color(cloth_crop)
+            
+        elif nationality == "American":
+            # Predict Age
+            age = int(age_model.predict(np.expand_dims(np.array(face_crop.resize((224, 224)))/255.0, 0), verbose=0)[0][0])
+            results_data["Age"] = age
+            
+        elif nationality == "African":
+            # Predict Dress Colour
+            results_data["Dress Colour"] = get_dress_color(cloth_crop)
+            
+        # "Others" case implicitly handled as it only includes Nationality and Emotion
+            
+        # 4. Display
         st.image(image.resize((1024, 1024)), caption="Analyzed Image", use_container_width=False, width=1024)
-        st.table(pd.DataFrame([{
-            "Nationality": nationality, "Age": age, "Emotion": emotion.capitalize(), "Dress": dress
-        }]))
-    else:
-        st.error("No person detected.")
+        st.table(pd.DataFrame([results_data]))
