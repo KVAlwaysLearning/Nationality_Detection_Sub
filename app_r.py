@@ -15,6 +15,13 @@ BASE_MODEL_DIR = "all_models"
 @st.cache_resource
 def setup_models():
     yolo_person = YOLO(os.path.join(BASE_MODEL_DIR, "yolo/yolov8n.pt"))
+    
+    # Ensure the path exists
+    model_path = os.path.join(BASE_MODEL_DIR, "nationality/Race-CLS-FairFace_yolo11x.pt")
+    # Check if file exists; if not, you might need to force a re-download
+    if not os.path.exists(model_path):
+        st.error(f"Model not found at: {model_path}")
+        
     nat_model = YOLO(os.path.join(BASE_MODEL_DIR, "nationality/Race-CLS-FairFace_yolo11x.pt"))
     emo_pipe = pipeline("image-classification", model=os.path.join(BASE_MODEL_DIR, "emotion"))
     age_model = keras.models.load_model(os.path.join(BASE_MODEL_DIR, "age/best_model.h5"), compile=False)
