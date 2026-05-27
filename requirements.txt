@@ -11,3 +11,4 @@ h5py
 numpy
 streamlit-webrtc
 av
+scikit-learn
