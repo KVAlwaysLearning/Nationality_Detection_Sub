@@ -9,13 +9,22 @@ from transformers import pipeline
 from tensorflow import keras
 from sklearn.cluster import KMeans
 
-st.set_page_config(layout="wide", page_title="Nationality Analyzer")
-
-BASE_MODEL_DIR = os.path.join(os.getcwd(), "all_models")
-DRIVE_ID = st.secrets["drive_folder_id"]
+# 1. Access the Folder ID from Streamlit Secrets
+# Define 'drive_folder_id' in your Streamlit Cloud Settings > Secrets
+DRIVE_FOLDER_ID = st.secrets["drive_folder_id"]
+BASE_MODEL_DIR = "all_models"
 
 @st.cache_resource
 def setup_models():
+    # 2. Download the entire folder if it doesn't exist locally
+    if not os.path.exists(BASE_MODEL_DIR):
+        os.makedirs(BASE_MODEL_DIR, exist_ok=True)
+        # Downloads the folder recursively
+        gdown.download_folder(id=DRIVE_FOLDER_ID, output=BASE_MODEL_DIR, quiet=False)
+    
+    # 3. Proceed to load your models now that files are in place
+    # Example: yolo_model = YOLO(os.path.join(BASE_MODEL_DIR, "yolov8n.pt"))
+    return "Models Ready"
     # Load YOLO for Person Detection
     yolo_person = YOLO(os.path.join(BASE_MODEL_DIR, "yolo/yolov8n.pt"))
     # Load Nationality model
