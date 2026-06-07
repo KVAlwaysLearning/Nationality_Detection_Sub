@@ -1,7 +1,3 @@
-To structure your GitHub repository for the **Nationality & Attribute Detection** project, I have prepared a comprehensive `README.md`. This guide is tailored to explain the project's logic, setup, and repository structure, including the mandatory `requirements.txt` and `packages.txt`.
-
----
-
 # Nationality & Attribute Detection System
 
 An AI-powered application designed to analyze facial images to predict nationality, emotions, and specific attributes (age, dress color) based on conditional logic.
